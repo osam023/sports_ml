@@ -1,9 +1,12 @@
 # -*- coding: utf-8 -*-
 
 from bs4 import BeautifulSoup
-import urllib2
+import urllib
 import re
 import pandas as pd
+import time
+
+WAIT_TIME = 0.5
 
 def get_archives():
     '''
@@ -11,7 +14,7 @@ def get_archives():
     '''
     result = []
     data_uri = 'http://www.xleague.com/kiroku/'
-    html_doc = urllib2.urlopen(data_uri)
+    html_doc = urllib.request.urlopen(data_uri)
     year_pattern = '^.+(20\d{2}).+$'
 
     soup = BeautifulSoup(html_doc.read(), 'html.parser')
@@ -44,7 +47,7 @@ def get_src(uri):
     '''
     iframeに埋込されているリンク先URLを取得する
     '''
-    html_doc = urllib2.urlopen(uri)
+    html_doc = urllib.request.urlopen(uri)
     soup = BeautifulSoup(html_doc.read(), 'html.parser')
     iframe_tag = soup.find('iframe')
     return iframe_tag.get('src')
@@ -57,44 +60,52 @@ def get_results(links):
     for link in links:
         if link['category'] == 'result_list':
             source_uri = get_src(link['link'])
-            print source_uri
+            print(source_uri)
 
-            play_info_doc = urllib2.urlopen(source_uri)
+            play_info_doc = urllib.request.urlopen(source_uri)
             play_info_soup = BeautifulSoup(play_info_doc.read(), 'html.parser')
             all_play_info_link = play_info_soup.find_all('a')
             for info in all_play_info_link:
-                if info.get('href').find(u'kiroku') > 0:
+                href_object = info.get('href')
+                if href_object is not None and href_object.find(u'kiroku') > 0:
                     get_play_info(info)
-#                    break # FIXME delete this break
-            break # FIXME delete this break
-
+                    time.sleep(WAIT_TIME)
+            time.sleep(WAIT_TIME)
 
 def get_play_info(info):
     '''
     各試合の詳細情報を取得する
     '''
-    # play_info_doc = urllib2.urlopen(info.get('href'))
+    # play_info_doc = urllib.request.urlopen(info.get('href'))
     # play_info_soup = BeautifulSoup(play_info_doc.read(), 'html.parser')
     # info_link = play_info_soup.find('iframe')
     # source_uri = info_link.get('src')
     source_uri = get_src(info.get('href'))
+    print(source_uri)
+    get_play_result(source_uri)
+    get_play_personal_result(source_uri)
+    
 
+def get_play_result(source_uri):
     ## 試合結果のデータ
     result_info = {}
     result_df = pd.read_html(source_uri)
+    print(result_df)
     result_info['condition'] = result_df[0]
     result_info['results'] = result_df[1]
     result_info['passed_result'] = result_df[2]
-    result_info['stats'] = result_df[3]
+    # FIXME 得点経過のテーブルが分かれたり分かれなかったりする
+#    result_info['stats'] = result_df[3]
     
+
+def get_play_personal_result(source_uri):
     ## 個人記録のデータ
     player_info = []
-    doc = urllib2.urlopen(source_uri)
+    doc = urllib.request.urlopen(source_uri)
     soup = BeautifulSoup(doc.read(), 'html.parser')
     for ancher in soup.find_all('a'):
-        print ancher.get('href')
         if ancher.get('href').find('player') > 0:
-            player_page = urllib2.urlopen(ancher.get('href'))
+            player_page = urllib.request.urlopen(ancher.get('href'))
             player_soup = BeautifulSoup(player_page.read(), 'html.parser')
             player_uri = player_soup.find('iframe').get('src')
             player_df = pd.read_html(player_uri, header=0)
@@ -104,7 +115,7 @@ def get_play_info(info):
                 tmp = {}
                 tmp['team'] = team
                 player_info.append(tmp)
-            print len(player_df)
+#            print(len(player_df))
             
             # RUSHING
             # add_score(player_df, 'rushing', 2, player_info)
@@ -130,8 +141,6 @@ def get_play_info(info):
             # add_score(player_df, 'pass_cut', 12, player_info)
             # add_score(player_df, 'pass_cut', 13, player_info)
             break
-#    print result_info
-#    print player_info
 
 
 def add_score(df, target, data_num, info_object):

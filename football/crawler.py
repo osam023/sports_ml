@@ -4,6 +4,7 @@ import urllib
 import re
 import pandas as pd
 import time
+import requests
 
 WAIT_TIME = 0.3
 
@@ -76,26 +77,38 @@ def get_play_info(info):
     '''
     各試合の詳細情報を取得する
     '''
-    # play_info_doc = urllib.request.urlopen(info.get('href'))
-    # play_info_soup = BeautifulSoup(play_info_doc.read(), 'html.parser')
-    # info_link = play_info_soup.find('iframe')
-    # source_uri = info_link.get('src')
     source_uri = get_src(info.get('href'))
     print(source_uri)
     get_play_result(source_uri)
     get_play_personal_result(source_uri)
+
     
+def get_charset(encodings):
+    '''
+    Webページの文字コードを取得する
+    '''
+    codings = [encoding for encoding in set(encodings)]
+    coding = codings[0].lower()
+    if coding == 'shift-jis':
+        return 'CP932'
+    else:
+        return coding
 
 def get_play_result(source_uri):
-    ## 試合結果のデータ
-    result_info = {}
-    result_df = pd.read_html(source_uri)
+    '''
+    試合結果のデータ
+    '''
+    response = requests.get(source_uri)
+    html_body = response.text if response.text is not None else None
+    html_encodings = requests.utils.get_encodings_from_content(html_body) # FIXME encoding指定のmetaタグが複数取れた場合の処理が必要
+    html_encode = get_charset(html_encodings)
+    result_df = pd.read_html(source_uri, encoding=html_encode) 
     print(result_df)
+    result_info = {}
     result_info['condition'] = result_df[0]
     result_info['results'] = result_df[1]
     result_info['passed_result'] = result_df[2]
-    # FIXME 得点経過のテーブルが分かれたり分かれなかったりする
-#    result_info['stats'] = result_df[3]
+    result_info['stats'] = result_df[3]
     
 
 def get_play_personal_result(source_uri):
@@ -162,5 +175,12 @@ def main():
     get_results(links)
     get_ranking(links)
 
+def test():
+    # チーム成績情報 がない
+    ng_uri = 'http://www.xleague.com/kiroku/archive/game/Y2010/I5062.htm'
+    get_play_result(ok_uri)
+    
+    
 if __name__ == '__main__':
+#    test()
     main()

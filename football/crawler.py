@@ -1,12 +1,11 @@
 # -*- coding: utf-8 -*-
-
 from bs4 import BeautifulSoup
 import urllib
 import re
 import pandas as pd
 import time
 
-WAIT_TIME = 0.5
+WAIT_TIME = 0.3
 
 def get_archives():
     '''
@@ -71,6 +70,7 @@ def get_results(links):
                     get_play_info(info)
                     time.sleep(WAIT_TIME)
             time.sleep(WAIT_TIME)
+
 
 def get_play_info(info):
     '''

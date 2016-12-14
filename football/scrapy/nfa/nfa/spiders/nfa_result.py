@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import re
 import scrapy
 import lxml
 from nfa.items import NfaItem
@@ -49,10 +50,35 @@ class NfaResultSpider(scrapy.Spider):
         iframe_tag = response.xpath('//*[@id="testIfr1"]').extract_first()
         iframe_object = lxml.html.fromstring(iframe_tag)
         src_url = iframe_object.attrib['src']
+#        result = {}
+#        result['url'] = src_url
         yield scrapy.Request(src_url, callback=self.parse_play_result)
 
     def parse_play_result(self ,response):
+        tables = response.xpath('//table').extract()
         result = {}
-        result['text'] = response.text
-        # TODO ここに試合結果のparseとデータの永続化を記載する
-        yield response.text
+        # TODO ここに試合結果をparseさせる処理を追加する
+        result['url'] = response.url
+        result['game_info'] = get_game_info(lxml.html.fromstring(tables[0]))
+        # result['game_score'] = tables[1]
+        # result['game_score_in'] = tables[2]
+        # result['game_score_stats'] = tables[3]
+        yield result
+
+def get_game_info(response_object):
+    r = re.compile('(\d{2}:\d{2})')
+    xml_object = response_object.xpath('//tr')
+    header_str = {'会場': 'stadium', '天気': 'wether', 'Kick off': 'kick_off', 'Game set': 'game_set', '来場者数': 'draw', '試合日': 'date'}
+    header = [header_str[x.text] for x in xml_object[0]]
+    body = []
+    for x in xml_object[1]:
+        if isinstance(x.text, str):
+            matcher = r.search(x.text)
+            if matcher is None:
+                body.append(x.text)
+            else:
+                date_str = x.text[matcher.start():matcher.end()]
+                body.append(date_str)
+        else:
+            body.append(x.text)
+    return dict(zip(header, body))

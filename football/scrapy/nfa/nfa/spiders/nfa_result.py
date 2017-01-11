@@ -68,7 +68,7 @@ class NfaResultSpider(scrapy.Spider):
 def get_game_info(response_object):
     r = re.compile('(\d{2}:\d{2})')
     xml_object = response_object.xpath('//tr')
-    header_str = {'会場': 'stadium', '天気': 'wether', 'Kick off': 'kick_off', 'Game set': 'game_set', '来場者数': 'draw', '試合日': 'date'}
+    header_str = {'会場': 'stadium', '天気': 'weather', 'Kick off': 'kick_off', 'Game set': 'game_set', '来場者数': 'draw', '試合日': 'date'}
     header = [header_str[x.text] for x in xml_object[0]]
     body = []
     for x in xml_object[1]:
